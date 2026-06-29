@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="75 Hard">
+<meta name="theme-color" content="#0c0a09">
+<link rel="manifest" href="manifest.json">
+<title>75 Hard Tracker</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0c0a09;
+  color: #e7e5e4;
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+
+/* ── Header ── */
+#header {
+  background: #1c1917;
+  border-bottom: 1px solid #292524;
+  padding: max(14px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 14px max(20px, env(safe-area-inset-left));
+  display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 100;
+}
+#header h1 { font-size: 18px; font-weight: 800; color: #f97316; flex: 1; }
+#header h1 span { color: #78716c; font-weight: 400; font-size: 13px; margin-left: 6px; }
+#user-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: #292524; border-radius: 20px; padding: 6px 12px;
+  font-size: 12px; color: #a8a29e; cursor: pointer; border: 1px solid #44403c;
+}
+#user-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #f97316; }
+
+/* ── Views ── */
+.view { display: none; padding: 20px max(16px, env(safe-area-inset-right)) max(90px, calc(env(safe-area-inset-bottom) + 70px)) max(16px, env(safe-area-inset-left)); }
+.view.active { display: block; }
+
+/* ── Bottom Nav ── */
+#bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #1c1917; border-top: 1px solid #292524;
+  display: flex; padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
+}
+.bn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 10px 4px 8px; border: none; background: transparent;
+  color: #57534e; font-size: 10px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; }
+.bn .bni { font-size: 22px; line-height: 1; }
+.bn.on { color: #f97316; }
+.bn.on-lb { color: #fbbf24; }
+
+/* ── Name Setup Screen ── */
+#setup-screen {
+  display: none; position: fixed; inset: 0;
+  background: #0c0a09; z-index: 300;
+  align-items: center; justify-content: center; flex-direction: column;
+  gap: 24px; padding: 32px;
+}
+#setup-screen.open { display: flex; }
+#setup-screen h2 { font-size: 28px; font-weight: 900; color: #f97316; text-align: center; }
+#setup-screen p { font-size: 14px; color: #78716c; text-align: center; line-height: 1.6; }
+#name-input {
+  width: 100%; max-width: 320px; padding: 14px 18px; border-radius: 12px;
+  border: 2px solid #44403c; background: #1c1917; color: #e7e5e4;
+  font-size: 18px; font-weight: 700; outline: none; text-align: center;
+}
+#name-input:focus { border-color: #f97316; }
+#name-submit {
+  width: 100%; max-width: 320px; padding: 16px; border-radius: 12px;
+  border: none; background: #f97316; color: #fff; font-size: 16px;
+  font-weight: 800; cursor: pointer; letter-spacing: 0.5px;
+}
+#name-submit:active { opacity: 0.85; }
+
+/* ── Stats bar ── */
+#stats-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+.stat-card { flex: 1; background: #1c1917; border: 1px solid #292524; border-radius: 12px; padding: 14px 10px; text-align: center; }
+.stat-val { font-size: 26px; font-weight: 900; color: #f97316; }
+.stat-lbl { font-size: 10px; color: #78716c; margin-top: 3px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+
+/* ── Progress bar ── */
+#prog-wrap { margin-bottom: 20px; }
+#prog-top { display: flex; justify-content: space-between; font-size: 12px; color: #78716c; margin-bottom: 6px; font-weight: 600; }
+#prog-track { height: 10px; background: #1c1917; border-radius: 5px; border: 1px solid #292524; overflow: hidden; }
+#prog-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #f97316, #ef4444); border-radius: 5px; transition: width 0.4s; }
+
+/* ── Day Grid ── */
+#day-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 7px; margin-bottom: 16px; }
+.day-cell {
+  border-radius: 10px; border: 1px solid #292524; background: #1c1917;
+  padding: 7px 4px; text-align: center; cursor: pointer; transition: all 0.15s;
+  min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+}
+.day-cell:active { opacity: 0.7; }
+.day-cell .dc-num { font-size: 11px; color: #57534e; font-weight: 700; }
+.day-cell .dc-dot { font-size: 14px; }
+.day-cell.complete { background: #1a0f00; border-color: #c2410c; }
+.day-cell.partial { background: #1c1507; border-color: #854d0e; }
+.day-cell.locked { opacity: 0.25; pointer-events: none; }
+
+/* ── Rules card ── */
+#rules-card { background: #1c1917; border-radius: 14px; padding: 20px; border: 1px solid #292524; margin-top: 20px; }
+#rules-card h3 { font-size: 13px; font-weight: 800; color: #f97316; margin-bottom: 16px; letter-spacing: 0.5px; text-transform: uppercase; }
+.rule-row { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #292524; }
+.rule-row:last-child { border-bottom: none; }
+.rule-icon { font-size: 22px; width: 30px; text-align: center; flex-shrink: 0; }
+.rule-text { flex: 1; }
+.rule-title { font-size: 13px; color: #e7e5e4; font-weight: 700; }
+.rule-sub { font-size: 11px; color: #78716c; margin-top: 3px; line-height: 1.4; }
+
+/* ── Streak banner ── */
+#streak-banner { display: none; padding: 14px 18px; border-radius: 12px; background: #1a0f00; border: 1px solid #c2410c; color: #fb923c; font-size: 14px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+
+/* ── Leaderboard ── */
+#lb-header { margin-bottom: 20px; }
+#lb-header h2 { font-size: 20px; font-weight: 900; color: #fbbf24; }
+#lb-header p { font-size: 12px; color: #78716c; margin-top: 4px; }
+#lb-refresh { float: right; padding: 6px 14px; border-radius: 8px; border: 1px solid #44403c; background: #1c1917; color: #a8a29e; font-size: 12px; cursor: pointer; font-weight: 600; }
+#lb-list { display: flex; flex-direction: column; gap: 10px; }
+.lb-card {
+  background: #1c1917; border: 1px solid #292524; border-radius: 14px;
+  padding: 16px 18px; display: flex; align-items: center; gap: 14px;
+  transition: border-color 0.15s;
+}
+.lb-card.me { border-color: #f97316; background: #1a0f00; }
+.lb-card.gold { border-color: #fbbf24; }
+.lb-rank { font-size: 20px; font-weight: 900; color: #57534e; width: 32px; text-align: center; flex-shrink: 0; }
+.lb-card.gold .lb-rank { color: #fbbf24; }
+.lb-card.silver .lb-rank { color: #94a3b8; }
+.lb-card.bronze .lb-rank { color: #c2956c; }
+.lb-info { flex: 1; }
+.lb-name { font-size: 15px; font-weight: 800; color: #e7e5e4; }
+.lb-name .you-tag { font-size: 10px; background: #f97316; color: #fff; border-radius: 10px; padding: 1px 7px; margin-left: 7px; font-weight: 700; }
+.lb-meta { font-size: 11px; color: #78716c; margin-top: 3px; }
+.lb-right { text-align: right; flex-shrink: 0; }
+.lb-days { font-size: 22px; font-weight: 900; color: #f97316; }
+.lb-streak { font-size: 10px; color: #78716c; font-weight: 600; }
+.lb-bar-wrap { margin-top: 8px; height: 4px; background: #292524; border-radius: 2px; overflow: hidden; }
+.lb-bar { height: 100%; background: linear-gradient(90deg,#f97316,#ef4444); border-radius: 2px; transition: width 0.4s; }
+#lb-empty { text-align: center; padding: 40px 20px; color: #57534e; font-size: 14px; display: none; }
+#lb-loading { text-align: center; padding: 40px 20px; color: #78716c; font-size: 14px; }
+#lb-error { display: none; background: #1c1917; border: 1px solid #7f1d1d; border-radius: 12px; padding: 16px; color: #fca5a5; font-size: 13px; margin-bottom: 16px; }
+
+/* ── Supabase setup notice ── */
+#config-notice {
+  background: #1c1917; border: 1px solid #854d0e; border-radius: 12px;
+  padding: 16px; margin-bottom: 20px; display: none;
+}
+#config-notice h4 { color: #fbbf24; font-size: 13px; margin-bottom: 8px; }
+#config-notice p { font-size: 12px; color: #a8a29e; line-height: 1.6; }
+#config-notice code { background: #0c0a09; padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #fb923c; }
+
+/* ── Task Modal ── */
+#modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8); z-index: 200; align-items: flex-end; justify-content: center;
+}
+#modal-overlay.open { display: flex; }
+#modal {
+  background: #1c1917; border-radius: 20px 20px 0 0; padding: 24px 20px;
+  width: 100%; max-width: 500px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+#modal h3 { font-size: 17px; font-weight: 800; color: #f97316; margin-bottom: 4px; }
+#modal-date { font-size: 12px; color: #78716c; margin-bottom: 20px; }
+.modal-task { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-bottom: 1px solid #292524; }
+.modal-task:last-of-type { border-bottom: none; }
+.modal-icon { font-size: 22px; width: 30px; text-align: center; flex-shrink: 0; }
+.modal-lbl { flex: 1; }
+.modal-lbl-title { font-size: 14px; color: #e7e5e4; font-weight: 600; }
+.modal-lbl-sub { font-size: 11px; color: #78716c; margin-top: 2px; }
+.modal-check {
+  width: 30px; height: 30px; border-radius: 8px; border: 2px solid #44403c;
+  background: transparent; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; font-size: 15px; font-weight: 900; color: transparent;
+  flex-shrink: 0; transition: all 0.15s;
+}
+.modal-check.on { background: #f97316; border-color: #f97316; color: #fff; }
+#modal-btns { margin-top: 20px; display: flex; gap: 10px; }
+#modal-btns button { flex: 1; padding: 14px; border-radius: 12px; border: none; cursor: pointer; font-size: 15px; font-weight: 800; }
+#modal-cancel { background: #292524; color: #a8a29e; }
+#modal-save { background: #f97316; color: #fff; }
+#modal-save:active, #modal-cancel:active { opacity: 0.8; }
+
+/* ── Reset warning ── */
+#reset-warning { display: none; background: #1a0000; border: 1px solid #7f1d1d; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; color: #fca5a5; font-size: 13px; font-weight: 600; text-align: center; }
+
+.legend { font-size: 11px; color: #44403c; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div id="setup-screen" class="open">
+  <div style="font-size:56px">🔥</div>
+  <h2>75 Hard</h2>
+  <p>The mental toughness challenge by Andy Frisella.<br>No excuses. No compromises. 75 days.</p>
+  <input id="name-input" type="text" placeholder="Enter your name" maxlength="20" autocomplete="off">
+  <button id="name-submit" onclick="submitName()">Start the Challenge →</button>
+</div>
+
+<!-- Task Modal -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <h3 id="modal-title">Day 1</h3>
+    <div id="modal-date"></div>
+    <div id="modal-tasks"></div>
+    <div id="modal-btns">
+      <button id="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button id="modal-save" onclick="saveDay()">Save Day</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <h1>75 Hard <span>Challenge</span></h1>
+  <div id="user-pill" onclick="changeName()">
+    <div class="dot"></div>
+    <span id="user-name-display">You</span>
+  </div>
+</div>
+
+<!-- Views -->
+<div id="view-tracker" class="view active">
+  <div id="streak-banner"></div>
+  <div id="reset-warning">⚠️ You missed a task — per the rules, you must restart at Day 1.</div>
+
+  <div id="stats-bar">
+    <div class="stat-card"><div class="stat-val" id="s-day">1</div><div class="stat-lbl">Current Day</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-streak">0</div><div class="stat-lbl">🔥 Streak</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-left">75</div><div class="stat-lbl">Days Left</div></div>
+  </div>
+
+  <div id="prog-wrap">
+    <div id="prog-top"><span id="prog-lbl">0 / 75 days</span><span id="prog-pct">0%</span></div>
+    <div id="prog-track"><div id="prog-bar"></div></div>
+  </div>
+
+  <div id="day-grid"></div>
+  <div class="legend">🟠 Complete &nbsp;·&nbsp; 🟡 Partial &nbsp;·&nbsp; ⬜ Not started · Tap to log</div>
+
+  <div id="rules-card">
+    <h3>📋 The 5 Daily Rules</h3>
+    <div class="rule-row"><span class="rule-icon">🥗</span><div class="rule-text"><div class="rule-title">Follow your diet</div><div class="rule-sub">No cheat meals, no alcohol — any diet you choose</div></div></div>
+    <div class="rule-row"><span class="rule-icon">💪</span><div class="rule-text"><div class="rule-title">Two 45-min workouts</div><div class="rule-sub">One must be outdoors — no combining them</div></div></div>
+    <div class="rule-row"><span class="rule-icon">💧</span><div class="rule-text"><div class="rule-title">1 gallon of water</div><div class="rule-sub">3.8 liters — track throughout the day</div></div></div>
+    <div class="rule-row"><span class="rule-icon">📖</span><div class="rule-text"><div class="rule-title">Read 10 pages</div><div class="rule-sub">Nonfiction / self-improvement, no audiobooks</div></div></div>
+    <div class="rule-row"><span class="rule-icon">📸</span><div class="rule-text"><div class="rule-title">Take a progress photo</div><div class="rule-sub">Every single day — no exceptions</div></div></div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid #292524;font-size:12px;color:#7f1d1d;font-weight:700">⚠️ Miss any task on any day → restart at Day 1</div>
+  </div>
+</div>
+
+<div id="view-leaderboard" class="view">
+  <div id="lb-header">
+    <button id="lb-refresh" onclick="loadLeaderboard()">↻ Refresh</button>
+    <h2>🏆 Leaderboard</h2>
+    <p>See how your crew is doing</p>
+  </div>
+  <div id="config-notice">
+    <h4>⚙️ Leaderboard Setup Required</h4>
+    <p>To enable the live leaderboard, open <code>index.html</code> in a text editor and replace the two placeholders near the top of the &lt;script&gt; tag:<br><br>
+    <code>SUPABASE_URL</code> → your project URL<br>
+    <code>SUPABASE_ANON_KEY</code> → your anon key<br><br>
+    See <code>README.txt</code> for the full 5-minute setup guide.</p>
+  </div>
+  <div id="lb-error"></div>
+  <div id="lb-loading">Loading leaderboard...</div>
+  <div id="lb-list"></div>
+  <div id="lb-empty">No one on the board yet. Be the first! 🔥</div>
+</div>
+
+<div id="bottom-nav">
+  <button class="bn on" id="bn-tracker" onclick="setView('tracker')"><span class="bni">🔥</span>MY PROGRESS</button>
+  <button class="bn" id="bn-lb" onclick="setView('leaderboard')"><span class="bni">🏆</span>LEADERBOARD</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  SUPABASE CONFIG
+//  Replace these two values after setup
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ══════════════════════════════════════════
+
+const CONFIGURED = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+
+const TASKS = [
+  {icon:'🥗', label:'Followed my diet', sub:'No cheat meals, no alcohol'},
+  {icon:'💪', label:'Workout 1 (45 min)', sub:'Indoors or outdoors'},
+  {icon:'🌿', label:'Workout 2 (45 min outdoors)', sub:'Must be outside'},
+  {icon:'💧', label:'Drank 1 gallon of water', sub:'3.8 liters'},
+  {icon:'📖', label:'Read 10 pages', sub:'Nonfiction / self-improvement'},
+  {icon:'📸', label:'Took a progress photo', sub:'Every day, no exceptions'},
+];
+
+const LS_DATA = 'hard75_data_v1';
+const LS_NAME = 'hard75_name_v1';
+const LS_ID   = 'hard75_uid_v1';
+
+let userName = localStorage.getItem(LS_NAME) || '';
+let userId   = localStorage.getItem(LS_ID)   || '';
+let hData    = {};
+try { hData = JSON.parse(localStorage.getItem(LS_DATA) || '{}'); } catch {}
+
+let modalDay = null;
+let modalState = {};
+
+// ── Boot ──
+if (userName) {
+  document.getElementById('setup-screen').classList.remove('open');
+  document.getElementById('user-name-display').textContent = userName;
+  renderTracker();
+} 
+
+function submitName() {
+  const n = document.getElementById('name-input').value.trim();
+  if (!n) { document.getElementById('name-input').focus(); return; }
+  userName = n;
+  userId = userId || ('user_' + Math.random().toString(36).slice(2, 10));
+  localStorage.setItem(LS_NAME, userName);
+  localStorage.setItem(LS_ID, userId);
+  document.getElementById('setup-screen').classList.remove('open');
+  document.getElementById('user-name-display').textContent = userName;
+  renderTracker();
+  pushToLeaderboard();
+}
+
+function changeName() {
+  const n = prompt('Change your display name:', userName);
+  if (n && n.trim()) {
+    userName = n.trim().slice(0, 20);
+    localStorage.setItem(LS_NAME, userName);
+    document.getElementById('user-name-display').textContent = userName;
+    pushToLeaderboard();
+    renderTracker();
+  }
+}
+
+// ── View ──
+function setView(v) {
+  document.getElementById('view-tracker').classList.toggle('active', v === 'tracker');
+  document.getElementById('view-leaderboard').classList.toggle('active', v === 'leaderboard');
+  document.getElementById('bn-tracker').classList.toggle('on', v === 'tracker');
+  document.getElementById('bn-lb').classList.toggle('on', v === 'leaderboard');
+  document.getElementById('bn-lb').classList.toggle('on-lb', v === 'leaderboard');
+  if (v === 'leaderboard') loadLeaderboard();
+}
+
+// ── Streak logic ──
+function getStreak() {
+  let s = 0;
+  for (let d = 1; d <= 75; d++) {
+    if (isDayComplete(d)) s = d; else break;
+  }
+  return s;
+}
+function isDayComplete(d) {
+  const day = hData[String(d)];
+  return day && TASKS.every((_, ti) => day[ti]);
+}
+function dayTasksDone(d) {
+  const day = hData[String(d)];
+  if (!day) return 0;
+  return TASKS.filter((_, ti) => day[ti]).length;
+}
+
+// ── Render tracker ──
+function renderTracker() {
+  const streak = getStreak();
+  const done = Object.keys(hData).filter(d => isDayComplete(+d)).length;
+  const current = Math.min(streak + 1, 75);
+  const pct = Math.round(done / 75 * 100);
+
+  document.getElementById('s-day').textContent = current;
+  document.getElementById('s-streak').textContent = streak;
+  document.getElementById('s-left').textContent = Math.max(0, 75 - done);
+  document.getElementById('prog-lbl').textContent = done + ' / 75 days';
+  document.getElementById('prog-pct').textContent = pct + '%';
+  document.getElementById('prog-bar').style.width = pct + '%';
+
+  // Banner
+  const banner = document.getElementById('streak-banner');
+  if (done === 75) { banner.style.display='block'; banner.textContent='🏆 You completed 75 Hard! Absolute beast.'; }
+  else if (streak > 0 && streak % 7 === 0) { banner.style.display='block'; banner.textContent='🔥 ' + streak + '-day streak — Week ' + Math.floor(streak/7) + ' done. Keep going!'; }
+  else banner.style.display='none';
+
+  // Grid
+  let html = '';
+  for (let d = 1; d <= 75; d++) {
+    const td = dayTasksDone(d);
+    const complete = td === TASKS.length;
+    const partial = td > 0 && !complete;
+    const unlocked = d <= current;
+    let cls = 'day-cell';
+    if (complete) cls += ' complete';
+    else if (partial) cls += ' partial';
+    else if (!unlocked) cls += ' locked';
+    const dot = complete ? '🟠' : partial ? '🟡' : unlocked ? '⬜' : '·';
+    html += '<div class="' + cls + '" onclick="openModal(' + d + ')" title="Day ' + d + '">'
+      + '<div class="dc-num">' + d + '</div>'
+      + '<div class="dc-dot">' + dot + '</div>'
+      + '</div>';
+  }
+  document.getElementById('day-grid').innerHTML = html;
+}
+
+// ── Modal ──
+function openModal(d) {
+  const streak = getStreak();
+  if (d > streak + 1) return;
+  modalDay = d;
+  modalState = {};
+  const ex = hData[String(d)] || {};
+  TASKS.forEach((_, ti) => { modalState[ti] = !!ex[ti]; });
+
+  document.getElementById('modal-title').textContent = 'Day ' + d;
+  const dateStr = d <= streak ? '(already logged)' : 'Log today\'s tasks';
+  document.getElementById('modal-date').textContent = dateStr;
+  renderModal();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function renderModal() {
+  document.getElementById('modal-tasks').innerHTML = TASKS.map((t, ti) => {
+    const on = modalState[ti];
+    return '<div class="modal-task">'
+      + '<span class="modal-icon">' + t.icon + '</span>'
+      + '<div class="modal-lbl"><div class="modal-lbl-title">' + t.label + '</div><div class="modal-lbl-sub">' + t.sub + '</div></div>'
+      + '<div class="modal-check' + (on ? ' on' : '') + '" onclick="toggleModalTask(' + ti + ')">' + (on ? '✓' : '') + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function toggleModalTask(ti) { modalState[ti] = !modalState[ti]; renderModal(); }
+
+function saveDay() {
+  const allDone = TASKS.every((_, ti) => modalState[ti]);
+  const streak = getStreak();
+  const warn = document.getElementById('reset-warning');
+  warn.style.display = 'none';
+
+  if (!allDone && modalDay <= streak + 1 && streak > 0) {
+    if (!confirm('⚠️ You missed a task! Per 75 Hard rules your streak resets to Day 1. Are you sure?')) {
+      closeModal(); return;
+    }
+    // Reset all future days
+    for (let d = modalDay; d <= 75; d++) delete hData[String(d)];
+    warn.style.display = 'block';
+    setTimeout(() => { warn.style.display = 'none'; }, 4000);
+  }
+
+  hData[String(modalDay)] = Object.assign({}, modalState);
+  localStorage.setItem(LS_DATA, JSON.stringify(hData));
+  closeModal();
+  renderTracker();
+  pushToLeaderboard();
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ── Supabase helpers ──
+async function sbFetch(path, method, body) {
+  if (!CONFIGURED) return null;
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+      method: method || 'GET',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': method === 'POST' ? 'resolution=merge-duplicates' : '',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : [];
+  } catch { return null; }
+}
+
+async function pushToLeaderboard() {
+  if (!CONFIGURED || !userName || !userId) return;
+  const streak = getStreak();
+  const done = Object.keys(hData).filter(d => isDayComplete(+d)).length;
+  await sbFetch('hard75_leaderboard', 'POST', {
+    id: userId,
+    name: userName,
+    days_complete: done,
+    streak: streak,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function loadLeaderboard() {
+  if (!CONFIGURED) {
+    document.getElementById('config-notice').style.display = 'block';
+    document.getElementById('lb-loading').style.display = 'none';
+    return;
+  }
+  document.getElementById('lb-loading').style.display = 'block';
+  document.getElementById('lb-error').style.display = 'none';
+  document.getElementById('lb-empty').style.display = 'none';
+  document.getElementById('lb-list').innerHTML = '';
+  document.getElementById('config-notice').style.display = 'none';
+
+  const data = await sbFetch('hard75_leaderboard?select=*&order=days_complete.desc,streak.desc');
+  document.getElementById('lb-loading').style.display = 'none';
+
+  if (!data) {
+    document.getElementById('lb-error').style.display = 'block';
+    document.getElementById('lb-error').textContent = '⚠️ Could not reach leaderboard. Check your Supabase config.';
+    return;
+  }
+  if (data.length === 0) {
+    document.getElementById('lb-empty').style.display = 'block';
+    return;
+  }
+
+  const medals = ['🥇','🥈','🥉'];
+  const rankCls = ['gold','silver','bronze'];
+  document.getElementById('lb-list').innerHTML = data.map((row, i) => {
+    const isMe = row.id === userId;
+    const rank = i < 3 ? medals[i] : '#' + (i + 1);
+    const pct = Math.round(row.days_complete / 75 * 100);
+    const lastSeen = row.updated_at ? new Date(row.updated_at).toLocaleDateString() : '';
+    return '<div class="lb-card' + (isMe ? ' me' : '') + (i < 3 ? ' ' + rankCls[i] : '') + '">'
+      + '<div class="lb-rank">' + rank + '</div>'
+      + '<div class="lb-info">'
+      + '<div class="lb-name">' + escHtml(row.name) + (isMe ? '<span class="you-tag">YOU</span>' : '') + '</div>'
+      + '<div class="lb-meta">🔥 ' + row.streak + ' day streak · last updated ' + lastSeen + '</div>'
+      + '<div class="lb-bar-wrap"><div class="lb-bar" style="width:' + pct + '%"></div></div>'
+      + '</div>'
+      + '<div class="lb-right"><div class="lb-days">' + row.days_complete + '</div><div class="lb-streak">/ 75 days</div></div>'
+      + '</div>';
+  }).join('');
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
